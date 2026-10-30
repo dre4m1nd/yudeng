@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Dorm {
+  id         String          @id @default(cuid())
+  name       String          @unique
+  building   String?
+  room       String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  students   Student[]
+  recipients DormRecipient[]
+  tokens     DormToken[]
+  accounts   UtilityAccount[]
+  scrapeRuns ScrapeRun[]
+  alerts     AlertEvent[]
+}
+
+model Student {
+  id        String      @id @default(cuid())
+  dormId    String
+  name      String
+  email     String
+  createdAt DateTime    @default(now())
+  dorm      Dorm        @relation(fields: [dormId], references: [id], onDelete: Cascade)
+  tokens    DormToken[]
+
+  @@unique([dormId, email])
+}
+
+model DormRecipient {
+  id        String   @id @default(cuid())
+  dormId    String
+  name      String?
+  email     String
+  createdAt DateTime @default(now())
+  dorm      Dorm     @relation(fields: [dormId], references: [id], onDelete: Cascade)
+
+  @@unique([dormId, email])
+}
+model DormToken {
+  id            String    @id @default(cuid())
+  dormId        String
+  studentId     String?
+  label         String?
+  tokenCipher   String
+  tokenHash     String    @unique
+  tokenMask     String
+  status        String    @default("ACTIVE")
+  lastUsedAt    DateTime?
+  lastSuccessAt DateTime?
+  failureCount  Int       @default(0)
+  cooldownUntil DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  dorm          Dorm      @relation(fields: [dormId], references: [id], onDelete: Cascade)
+  student       Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([dormId, status])
+}
+
+model UtilityAccount {
+  id          String           @id @default(cuid())
+  dormId      String
+  type        String
+  displayName String
+  unit        String
+  createdAt   DateTime         @default(now())
+  dorm        Dorm             @relation(fields: [dormId], references: [id], onDelete: Cascade)
+  snapshots   BalanceSnapshot[]
+  alertRule   AlertRule?
+  alerts      AlertEvent[]
+
+  @@unique([dormId, type])
+}
+
+model BalanceSnapshot {
+  id               String         @id @default(cuid())
+  accountId        String
+  moneyCents       Int
+  volumeHundredths Int
+  schoolUpdatedAt  DateTime
+  capturedAt       DateTime       @default(now())
+  hourBucket       DateTime
+  raw              String
+  account          UtilityAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, hourBucket])
+  @@index([accountId, capturedAt])
+}
+
+model AlertRule {
+  id                        String         @id @default(cuid())
+  accountId                 String         @unique
+  moneyThresholdCents       Int            @default(1000)
+  volumeThresholdHundredths Int?
+  forecastDays              Int            @default(3)
+  enabled                   Boolean        @default(true)
+  cooldownHours             Int            @default(24)
+  lastAlertLevel            String?
+  lastAlertAt               DateTime?
+  account                   UtilityAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+model AlertEvent {
+  id               String          @id @default(cuid())
+  dormId           String
+  accountId        String?
+  level            String
+  metric           String?
+  valueCents       Int?
+  valueHundredths  Int?
+  dedupeKey        String          @unique
+  sentAt           DateTime?
+  status           String          @default("PENDING")
+  recipients       String
+  error            String?
+  createdAt        DateTime        @default(now())
+  dorm             Dorm            @relation(fields: [dormId], references: [id], onDelete: Cascade)
+  account          UtilityAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([dormId, createdAt])
+}
+
+model ScrapeRun {
+  id         String    @id @default(cuid())
+  dormId     String
+  trigger    String    @default("cron")
+  status     String    @default("RUNNING")
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+  error      String?
+  dorm       Dorm      @relation(fields: [dormId], references: [id], onDelete: Cascade)
+
+  @@index([dormId, startedAt])
+}

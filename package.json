@@ -1,0 +1,14 @@
+{
+  "name": "yudeng",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @yudeng/api --filter @yudeng/web dev",
+    "build": "pnpm --filter @yudeng/shared build && pnpm --filter @yudeng/api build && pnpm --filter @yudeng/web build",
+    "start": "pnpm --filter @yudeng/api start",
+    "db:generate": "pnpm --filter @yudeng/shared build && pnpm --filter @yudeng/api db:generate",
+    "db:push": "pnpm --filter @yudeng/api db:push",
+    "db:seed": "pnpm --filter @yudeng/shared build && pnpm --filter @yudeng/api db:seed"
+  }
+}
